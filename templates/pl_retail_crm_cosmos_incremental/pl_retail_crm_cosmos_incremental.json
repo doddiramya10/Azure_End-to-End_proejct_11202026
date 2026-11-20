@@ -1,0 +1,195 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name"
+		},
+		"ls_retail_crm_cosmos": {
+			"type": "string"
+		},
+		"ls_retail_storage_mi": {
+			"type": "string"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_retail_crm_cosmos_incremental')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CopyChangedCustomers",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "CosmosDbSqlApiSource",
+								"query": {
+									"value": "@concat('SELECT c.id, c.customer_id, c.name, c.city, c.updated_at FROM c WHERE c.updated_at > \"', formatDateTime(pipeline().parameters.fromUtc, 'yyyy-MM-ddTHH:mm:ssZ'), '\" AND c.updated_at <= \"', formatDateTime(pipeline().parameters.toUtc, 'yyyy-MM-ddTHH:mm:ssZ'), '\"')",
+									"type": "Expression"
+								},
+								"preferredRegions": []
+							},
+							"sink": {
+								"type": "JsonSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								},
+								"formatSettings": {
+									"type": "JsonWriteSettings",
+									"filePattern": "arrayOfObjects"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"path": "$['id']"
+										},
+										"sink": {
+											"path": "$['id']"
+										}
+									},
+									{
+										"source": {
+											"path": "$['customer_id']"
+										},
+										"sink": {
+											"path": "$['customer_id']"
+										}
+									},
+									{
+										"source": {
+											"path": "$['name']"
+										},
+										"sink": {
+											"path": "$['name']"
+										}
+									},
+									{
+										"source": {
+											"path": "$['city']"
+										},
+										"sink": {
+											"path": "$['city']"
+										}
+									},
+									{
+										"source": {
+											"path": "$['updated_at']"
+										},
+										"sink": {
+											"path": "$['updated_at']"
+										}
+									}
+								]
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_retail_crm_cosmos",
+								"type": "DatasetReference"
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_retail_crm_landing",
+								"type": "DatasetReference",
+								"parameters": {
+									"batchId": {
+										"value": "@pipeline().parameters.batchId",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					}
+				],
+				"parameters": {
+					"fromUtc": {
+						"type": "String",
+						"defaultValue": "2026-11-15T06:00:00Z"
+					},
+					"toUtc": {
+						"type": "String",
+						"defaultValue": "2026-11-16T06:00:00Z"
+					},
+					"batchId": {
+						"type": "String",
+						"defaultValue": "batch-02"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-11-20T10:31:39Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_retail_crm_cosmos')]",
+				"[concat(variables('factoryId'), '/datasets/ds_retail_crm_landing')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_retail_crm_cosmos')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('ls_retail_crm_cosmos')]",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "CosmosDbSqlApiCollection",
+				"schema": {},
+				"typeProperties": {
+					"collectionName": "customers"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_retail_crm_landing')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "[parameters('ls_retail_storage_mi')]",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"batchId": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": "customers.json",
+						"folderPath": {
+							"value": "@concat('crm/cosmos/', dataset().batchId)",
+							"type": "Expression"
+						},
+						"container": "landing"
+					}
+				},
+				"schema": {}
+			},
+			"dependsOn": []
+		}
+	]
+}
