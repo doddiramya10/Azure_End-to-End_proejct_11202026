@@ -1,0 +1,9 @@
+{
+	"name": "ir-retail-sql-private",
+	"properties": {
+		"type": "SelfHosted",
+		"typeProperties": {
+			"selfContainedInteractiveAuthoringEnabled": true
+		}
+	}
+}

@@ -1,0 +1,16 @@
+{
+	"name": "adf-retail-de-2611182",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true,
+			"isExplicitlySet": false
+		}
+	},
+	"location": "westus2",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "6a3a89a5-b98a-4f4b-a6b9-5891f6efb1a1",
+		"tenantId": "a26c5590-978b-4423-82a4-4be95dc3900f"
+	}
+}
